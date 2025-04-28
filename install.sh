@@ -288,7 +288,7 @@ EOF
 sudo systemctl restart kibana
 until curl -ks https://localhost:5601 >/dev/null; do sleep 2; done
 
-echo "34/35 🔒 Sinh chứng chỉ Logstash & chỉnh pipeline SSL…"
+echo "34/35 🔒 Sinh chứng chỉ Logstash & chỉnh pipeline SSL & join token"
 sudo /opt/elasticsearch/bin/elasticsearch-certutil cert --name logstash --ca $ES_DIR/config/elastic-stack-ca.p12 \
      --silent --ca-pass $CA_PASS --pass $CA_PASS --out $LOGSTASH_DIR/config/logstash.p12
 sudo openssl pkcs12 -in $LOGSTASH_DIR/config/logstash.p12 -nocerts -nodes -passin pass:$CA_PASS | \
@@ -304,4 +304,9 @@ sudo sed -i -e 's|\(\s*hosts\s*=>\s*\)\["http://|\1["https://|g' \
 sudo systemctl restart logstash
 
 sudo cp /opt/elasticsearch/config/elastic-stack-ca.p12 /vagrant/
+
+TOKEN_NODE=$(sudo -u elasticsearch $ES_SYM/bin/elasticsearch-create-enrollment-token --scope node)
+ 
+echo "ENROLLMENT_TOKEN_NODE=${TOKEN_NODE}" | sudo tee -a $ENV_FILE
+echo "🔑 Đã lưu token node vào $ENV_FILE"
 echo "35/35 ✅ Hoàn tất! ELK đang chạy HTTPS. Mật khẩu lưu tại $ENV_FILE"
