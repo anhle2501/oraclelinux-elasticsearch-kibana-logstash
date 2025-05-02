@@ -4,7 +4,7 @@ set -euo pipefail
 ################################################################
 #  AUTO-INSTALL EXTRA ELASTICSEARCH NODE (SSL-aware)
 #  Oracle Linux / CentOS / RHEL 8
-#  04-2025 / Author: Lê Nhựt Anh / anh2ln@hcmpc.com.vn
+#  04-2025 / Author: Lê Nhựt Anh 
 ################################################################
 
 ############## TÙY CHỈNH NHANH ##############
