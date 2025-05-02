@@ -3,3 +3,5 @@ elasticsearch-8.13.4
 elasticsearch-8.13.4-linux-x86_64.tar.gz
 kibana-8.13.4-linux-x86_64.tar.gz
 logstash-8.13.4-linux-x86_64.tar.gz
+
+elastic_node/.vagrant

@@ -14,6 +14,7 @@ Vagrant.configure("2") do |config|
   # boxes at https://vagrantcloud.com/search.
   config.vm.box = "eurolinux-vagrant/oracle-linux-8"
   config.vm.box_version = "8.10.5"
+  config.vm.disk :disk, size: "10GB", primary: true
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -35,7 +36,7 @@ Vagrant.configure("2") do |config|
   config.vm.network "forwarded_port", guest: 9600, host: 9600, host_ip: "127.0.0.1"
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
-  config.vm.network "private_network", ip: "192.168.33.10"
+  config.vm.network "private_network", ip: "192.168.56.10"
 
   # Create a public network, which generally matched to bridged network.
   # Bridged networks make the machine appear as another physical device on
@@ -66,6 +67,7 @@ Vagrant.configure("2") do |config|
   #   # Customize the amount of memory on the VM:
     vb.memory = "4096"
     vb.cpus = 2
+
   end
   #
   # View the documentation for the provider you are using for more
@@ -78,11 +80,14 @@ Vagrant.configure("2") do |config|
   #   apt-get update
   #   apt-get install -y apache2
   # SHELL
-  config.vm.synced_folder ".", "/vagrant", disabled: false
+  config.vm.synced_folder "./p12", "/vagrant_shared", 
+    owner: "vagrant", 
+    group: "vagrant",
+    mount_options: ["dmode=775,fmode=664"]
   
   # Provisioning
   config.vm.provision "file", source: "elasticsearch-8.13.4-linux-x86_64.tar.gz", destination: "/home/vagrant/"
   config.vm.provision "file", source: "kibana-8.13.4-linux-x86_64.tar.gz", destination: "/home/vagrant/"
   config.vm.provision "file", source: "logstash-8.13.4-linux-x86_64.tar.gz", destination: "/home/vagrant/"
-  config.vm.provision "shell", path: "install.sh"
+  config.vm.provision "shell", path: "install.sh",  args: "vagrant"     
 end

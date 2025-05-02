@@ -1,26 +1,14 @@
 #!/bin/bash
 set -e
 ############################################################
-#   CÀI ĐẶT ELK STACK 8.13.4 + SSL
-#   (Giữ nguyên logic gốc – bổ sung tham số user)
+#   CÀI ĐẶT ELK STACK 8.13.4 + SSL (giữ nguyên lệnh gốc)
 #   Tác giả: <YourName> – 04/2025
 ############################################################
 
 ####################  BIẾN CHUNG  ##########################
-# User sở hữu các file .tar.gz, .p12 (mặc định = user hiện tại)
-DEPLOY_USER="${1:-$(whoami)}"
-
-# Lấy đường dẫn $HOME chính xác của DEPLOY_USER
-USER_HOME="$(getent passwd "${DEPLOY_USER}" | cut -d: -f6)"
-if [[ -z "$USER_HOME" ]]; then
-  echo "❌ Không tìm thấy home của user ${DEPLOY_USER}" >&2
-  exit 1
-fi
-
 BASE_DIR="/opt"
 MASTER_HOST="192.168.56.10"
 DATA_HOST="192.168.56.11"
-
 # Elasticsearch
 ES_VERSION="8.13.4"
 ES_TAR="elasticsearch-${ES_VERSION}-linux-x86_64.tar.gz"
@@ -43,7 +31,7 @@ LOGSTASH_SYM="${BASE_DIR}/logstash"
 LOGSTASH_USER="logstash"
 
 # File chung
-ENV_FILE="${USER_HOME}/elk-passwords.env"
+ENV_FILE="/home/vagrant/elk-passwords.env"
 CA_PASS="changeme"
 ############################################################
 
@@ -52,7 +40,7 @@ id -u $ES_USER &>/dev/null || sudo useradd --system --no-create-home --shell /sb
 
 echo "2/35 📦 Giải nén Elasticsearch…"
 sudo mkdir -p $BASE_DIR
-sudo tar -xzf "${USER_HOME}/${ES_TAR}" -C $BASE_DIR
+sudo tar -xzf /home/vagrant/$ES_TAR -C $BASE_DIR
 
 echo "3/35 🔧 Phân quyền thư mục Elasticsearch…"
 sudo chown -R $ES_USER:$ES_USER $ES_DIR
@@ -108,10 +96,10 @@ until curl -s http://localhost:9200 >/dev/null; do sleep 2; done
 
 echo "11/35 🔐 Sinh mật khẩu mặc định…"
 sudo -u $ES_USER $ES_DIR/bin/elasticsearch-setup-passwords auto -b > $ENV_FILE
-sudo chown "$DEPLOY_USER":"$DEPLOY_USER" $ENV_FILE
+sudo chown vagrant:vagrant $ENV_FILE
 ES_PASSWORD=$(grep "PASSWORD elastic" $ENV_FILE | awk '{print $4}')
 
-echo "12/35 🔧 Bật SSL Transport…"
+echo "12/35 🔧 Bật SSL Transport (dòng thêm)…"
 sudo sed -i 's/xpack.security.enabled: true/&\
 xpack.security.transport.ssl.enabled: true/' $ES_DIR/config/elasticsearch.yml
 
@@ -120,7 +108,7 @@ echo "13/35 👉 Tạo user Kibana (nếu chưa có)…"
 id -u $KIBANA_USER &>/dev/null || sudo useradd --system --no-create-home --shell /sbin/nologin $KIBANA_USER
 
 echo "14/35 📦 Giải nén Kibana…"
-sudo tar -xzf "${USER_HOME}/${KIBANA_TAR}" -C $BASE_DIR
+sudo tar -xzf /home/vagrant/$KIBANA_TAR -C $BASE_DIR
 
 echo "15/35 🔧 Phân quyền & symlink Kibana…"
 sudo chown -R $KIBANA_USER:$KIBANA_USER $KIBANA_DIR
@@ -164,6 +152,7 @@ sudo systemctl start  kibana
 
 echo "19/35 ⏳ Đợi Kibana sẵn sàng (HTTP)…"
 until curl -s http://localhost:5601 >/dev/null; do sleep 2; done
+
 echo "20/35 ✅ Kibana đã sẵn sàng tại http://localhost:5601"
 
 ###################  LOGSTASH  #################
@@ -171,7 +160,7 @@ echo "21/35 👉 Tạo user Logstash (nếu chưa có)…"
 id -u $LOGSTASH_USER &>/dev/null || sudo useradd --system --no-create-home --shell /sbin/nologin $LOGSTASH_USER
 
 echo "22/35 📦 Giải nén Logstash…"
-sudo tar -xzf "${USER_HOME}/${LOGSTASH_TAR}" -C $BASE_DIR
+sudo tar -xzf /home/vagrant/$LOGSTASH_TAR -C $BASE_DIR
 
 echo "23/35 🔧 Phân quyền & symlink Logstash…"
 sudo chown -R $LOGSTASH_USER:$LOGSTASH_USER $LOGSTASH_DIR
@@ -238,7 +227,7 @@ echo "29/35 ⏳ Đợi API monitoring Logstash…"
 until curl -s http://localhost:9600/_node/pipelines >/dev/null; do sleep 2; done
 
 ###################  SSL  ####################
-echo "30/35 🔒 Bật SSL HTTP & Transport…"
+echo "30/35 🔒 Sửa elasticsearch.yml để bật SSL HTTP & Transport…"
 sudo sed -i '/^xpack\.security\.http\.ssl:/,/^  enabled: false/d' $ES_SYM/config/elasticsearch.yml
 sudo sed -i '/^xpack\.security\.transport\.ssl\.enabled: true/d' $ES_SYM/config/elasticsearch.yml
 sudo rm -f $ES_SYM/config/elasticsearch.yml
@@ -254,7 +243,6 @@ transport.bind_host: $MASTER_HOST
 cluster.initial_master_nodes: ["master-1"]
 discovery.seed_hosts: ["$MASTER_HOST", "$DATA_HOST"]
 network.publish_host: $MASTER_HOST
-
 # ---- SSL ----
 xpack.security.http.ssl.enabled: true
 xpack.security.http.ssl.keystore.type: PKCS12
@@ -272,7 +260,9 @@ xpack.security.transport.ssl.truststore.path: elasticsearch.p12
 xpack.security.transport.ssl.truststore.password: $CA_PASS
 EOF
 
-sudo systemctl restart elasticsearch
+sudo systemctl stop elasticsearch
+sudo systemctl start elasticsearch
+
 
 echo "31/35 🔒 Sinh CA & keystore elasticsearch.p12…"
 sudo rm -f $ES_DIR/config/elastic-stack-ca.p12 $ES_DIR/config/elasticsearch.p12
@@ -286,7 +276,8 @@ sudo chown $ES_USER:$ES_USER $ES_DIR/config/*.p12
 sudo chmod 640              $ES_DIR/config/*.p12
 
 echo "32/35 🔁 Khởi động lại Elasticsearch (HTTPS)…"
-sudo systemctl restart elasticsearch
+sudo systemctl stop elasticsearch
+sudo systemctl start elasticsearch
 until curl -ks https://localhost:9200 >/dev/null; do sleep 2; done
 
 echo "33/35 🔒 Sinh chứng chỉ Kibana & cấu hình TLS…"
@@ -314,7 +305,7 @@ EOF
 sudo systemctl restart kibana
 until curl -ks https://localhost:5601 >/dev/null; do sleep 2; done
 
-echo "34/35 🔒 Sinh chứng chỉ Logstash & chỉnh pipeline SSL…"
+echo "34/35 🔒 Sinh chứng chỉ Logstash & chỉnh pipeline SSL & join token"
 sudo /opt/elasticsearch/bin/elasticsearch-certutil cert --name logstash --ca $ES_DIR/config/elastic-stack-ca.p12 \
      --silent --ca-pass $CA_PASS --pass $CA_PASS --out $LOGSTASH_DIR/config/logstash.p12
 sudo openssl pkcs12 -in $LOGSTASH_DIR/config/logstash.p12 -nocerts -nodes -passin pass:$CA_PASS | \
@@ -325,8 +316,8 @@ sudo cp $KIBANA_DIR/config/elastic-stack-ca.pem $LOGSTASH_DIR/config/
 sudo chown $LOGSTASH_USER:$LOGSTASH_USER $LOGSTASH_DIR/config/logstash.* $LOGSTASH_DIR/config/elastic-stack-ca.pem
 sudo chmod 640 $LOGSTASH_DIR/config/logstash.* $LOGSTASH_DIR/config/elastic-stack-ca.pem
 sudo sed -i -e 's|\(\s*hosts\s*=>\s*\)\["http://|\1["https://|g' \
-            -e '/^\s*hosts\s*=>/a \    ssl_certificate_verification => false\n    ssl => true\n    cacert => "'"$LOGSTASH_DIR/config/elastic-stack-ca.pem"'"' \
-            /etc/logstash/sample.conf
+-e '/^\s*hosts\s*=>/a \    ssl_certificate_verification => false\n    ssl => true\n    cacert => "'"$LOGSTASH_DIR/config/elastic-stack-ca.pem"'"' \
+  /etc/logstash/sample.conf
 sudo systemctl restart logstash
 
 sudo cp /opt/elasticsearch/config/elastic-stack-ca.p12 /vagrant_shared/
