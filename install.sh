@@ -3,7 +3,7 @@ set -e
 ############################################################
 #   CÀI ĐẶT ELK STACK 8.13.4 + SSL
 #   (Giữ nguyên logic gốc – bổ sung tham số user)
-#   Tác giả: <YourName> – 04/2025
+#   Tác giả: Lê Nhưt Anh - Email: anh2ln@hcmpc.com.vn – 04/2025
 ############################################################
 
 ####################  BIẾN CHUNG  ##########################
@@ -329,6 +329,6 @@ sudo sed -i -e 's|\(\s*hosts\s*=>\s*\)\["http://|\1["https://|g' \
             /etc/logstash/sample.conf
 sudo systemctl restart logstash
 
-sudo cp /opt/elasticsearch/config/elastic-stack-ca.p12 /vagrant_shared/
+sudo cp /opt/elasticsearch/config/elastic-stack-ca.p12 /home/$USER_HOME
 
 echo "35/35 ✅ Hoàn tất! ELK đang chạy HTTPS. Mật khẩu lưu tại $ENV_FILE"

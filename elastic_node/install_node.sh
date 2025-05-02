@@ -72,7 +72,7 @@ SSL
 )
 
   echo "⚙️  [6/9] Cập nhật elasticsearch.yml…"
-  cat <<EOF | sudo tee $ES_DIR/config/elasticsearch.yml
+  sudo tee $ES_DIR/config/elasticsearch.yml >/dev/null <<EOF
 cluster.name: $CLUSTER_NAME
 node.name: $NODE_NAME
 network.host: 0.0.0.0
@@ -87,7 +87,7 @@ fi
 
 # ----------------------------------------------------------
 echo "🛠️  [7/9] Tạo systemd service elasticsearch…"
-cat <<EOF | sudo tee /etc/systemd/system/elasticsearch.service
+sudo tee /etc/systemd/system/elasticsearch.service >/dev/null <<EOF
 [Unit]
 Description=Elasticsearch
 Wants=network-online.target
